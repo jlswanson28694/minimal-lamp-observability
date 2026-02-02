@@ -8,7 +8,7 @@ ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update \
-    && apt-get install -y gnupg gosu curl ca-certificates zip unzip git supervisor sqlite3 libcap2-bin libpng-dev python3 dnsutils librsvg2-bin fswatch ffmpeg nano wget apache2 \
+    && apt-get install -y gnupg gosu curl ca-certificates zip unzip git supervisor sqlite3 libcap2-bin libpng-dev python3 dnsutils librsvg2-bin fswatch ffmpeg nano wget apache2 iproute2 \
     && mkdir -p /etc/apt/keyrings \
     && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' | gpg --dearmor | tee /etc/apt/keyrings/ppa_ondrej_php.gpg > /dev/null \
     && echo "deb [signed-by=/etc/apt/keyrings/ppa_ondrej_php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble main" > /etc/apt/sources.list.d/ppa_ondrej_php.list \
@@ -59,5 +59,12 @@ RUN a2dismod mpm_prefork \
     && wget https://github.com/prometheus/node_exporter/releases/download/v1.10.2/node_exporter-1.10.2.linux-amd64.tar.gz \
     && tar xvfz node_exporter-1.10.2.linux-amd64.tar.gz && rm node_exporter-1.10.2.linux-amd64.tar.gz \
     && mv node_exporter-1.10.2.linux-amd64/node_exporter /usr/local/bin && rm -rf node_exporter-1.10.2.linux-amd64
+
+RUN cat <<EOT >> /etc/apache2/apache2.conf
+
+# Maximum length of the queue of pending connections
+# Reduced from the default of 511 to prevent queues in front of Apache
+ListenBackLog 16
+EOT
 
 CMD ["/usr/bin/supervisord", "-n"]
