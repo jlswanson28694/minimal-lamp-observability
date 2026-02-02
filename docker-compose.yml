@@ -1,0 +1,76 @@
+services:
+    apache:
+        build:
+            context: ./docker
+            dockerfile: Dockerfile
+        image: apache-latency/app
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '80:80'
+            - '8080:8080' # Apache server status at `/server-status`, PHP-FPM status at `/fpm-status`
+            - '9090:9090' # Prometheus UI
+        volumes:
+            - './html:/var/www/html'
+            - './docker/supervisor:/etc/supervisor/conf.d'
+            - './docker/vhosts:/etc/apache2/sites-enabled'
+            - './docker/prometheus.yml:/etc/prometheus/prometheus.yml'
+            - './docker/collector/config.yaml:/etc/otelcol-contrib/config.yaml'
+            - './docker/php-fpm.conf:/etc/php/8.5/fpm/pool.d/z-www-overrides.conf'
+        networks:
+            - observability
+    grafana:
+        image: 'grafana/grafana'
+        ports:
+            - '3000:3000' # Grafana dashboard
+        environment:
+            - GF_SERVER_HTTP_ADDR=0.0.0.0
+        volumes:
+            - 'grafana-data:/var/lib/grafana'
+        networks:
+            - observability
+    mysql:
+        image: 'mysql:8.4'
+        ports:
+            - '3306:3306'
+        environment:
+            MYSQL_ROOT_PASSWORD: 'password'
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: 'app'
+        volumes:
+            - 'mysql:/var/lib/mysql'
+        networks:
+            - observability
+        healthcheck:
+            test:
+                - CMD
+                - mysqladmin
+                - ping
+                - '-p password'
+            retries: 3
+            timeout: 5s
+    redis:
+        image: 'redis:alpine'
+        ports:
+            - '6379:6379'
+        volumes:
+            - 'redis:/data'
+        networks:
+            - observability
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
+networks:
+    observability:
+        driver: bridge
+volumes:
+    grafana-data:
+        driver: local
+    mysql:
+        driver: local
+    redis:
+        driver: local

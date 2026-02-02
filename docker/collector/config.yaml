@@ -1,0 +1,94 @@
+receivers:
+  apache:
+    endpoint: "http://localhost:8080/server-status?auto"
+  mysql:
+    endpoint: mysql:3306
+    collection_interval: 10s
+    username: root
+    password: password
+  redis:
+    endpoint: redis:6379
+    collection_interval: 10s
+  filelog:
+    include: ["/var/log/apache2/access.log"]
+    operators:
+      - type: regex_parser
+        regex: '^(?P<host>[^ ]+) (?P<ident>[^ ]+) (?P<user>[^ ]+) \[(?P<timestamp>.+)\] "(?P<request>.+)" (?P<status>\d+) (?P<size>[^ ]+) (?P<latency_us>\d+) "(?P<referer>.*?)" "(?P<agent>.*?)"$'
+
+processors:
+  # batch:
+  #   timeout: 5s
+  deltatocumulative:
+    # This option would be required if any of the metrics from signaltometrics were high cardinality
+    # Both apache_status_codes_count and apache_latency_milliseconds are low cardinality
+    # Having to deal with expiring metrics is frustrating, so I'd prefer to avoid it
+    # Either don't mark as stale, or set the limit to something so high it would be nearly impossible for the important metrics to be unchanged for that long
+    # max_stale: 30m
+
+connectors:
+  signaltometrics:
+    logs:
+      - name: apache_status_codes_count
+        description: Occurrences of Apache status codes
+        sum:
+          value: "1"
+        attributes:
+          - key: status
+      - name: apache_latency_milliseconds
+        description: Apache request latency as exponential histogram
+        conditions:
+          # Only store successful requests
+          # Most POST requests in my apps respond with a redirect, so include both 2xx and 3xx responses
+          - IsMatch(attributes["status"], "^[23].*")
+        exponential_histogram:
+          # Convert to milliseconds and store
+          value: Double(attributes["latency_us"]) / 1000
+          max_size: 160
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    
+    # Metrics that have not changed for 30m will be removed from memory and will no longer be available for scraping
+    # If you ever split time series by a higher cardinality label, this should be set low enough that memory usage doesn't become a problem
+    # Actually, is it that the metric expires if it doesn't change for 30 minutes, or if it doesn't receive any data from the receivers for that metric for 30 minutes?
+    metric_expiration: 30m
+    
+    # Let Prometheus assign the timestamp
+    send_timestamps: false
+    
+    # Ensure resource attributes (like 'host') are converted to labels
+    # resource_to_telemetry_conversion:
+    #   enabled: true
+
+service:
+  pipelines:
+    logs:
+      receivers: [filelog]
+      processors: []
+      exporters: [signaltometrics]
+    metrics:
+      receivers: [signaltometrics]
+      processors: [deltatocumulative]
+      exporters: [prometheus]
+    metrics/apache-status:
+      receivers: [apache]
+      processors: []
+      exporters: [prometheus]
+    metrics/mysql:
+      receivers: [mysql]
+      processors: []
+      exporters: [prometheus]
+    metrics/redis:
+      receivers: [redis]
+      processors: []
+      exporters: [prometheus]
+  telemetry:
+    metrics:
+      level: basic
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
