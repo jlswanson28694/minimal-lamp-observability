@@ -58,7 +58,10 @@ RUN a2dismod mpm_prefork \
     && mv ./php-fpm_exporter/php-fpm_exporter /usr/local/bin && rm -rf ./php-fpm_exporter \
     && wget https://github.com/prometheus/node_exporter/releases/download/v1.10.2/node_exporter-1.10.2.linux-amd64.tar.gz \
     && tar xvfz node_exporter-1.10.2.linux-amd64.tar.gz && rm node_exporter-1.10.2.linux-amd64.tar.gz \
-    && mv node_exporter-1.10.2.linux-amd64/node_exporter /usr/local/bin && rm -rf node_exporter-1.10.2.linux-amd64
+    && mv node_exporter-1.10.2.linux-amd64/node_exporter /usr/local/bin && rm -rf node_exporter-1.10.2.linux-amd64 \
+    && apt update \
+    && apt install atop -y \
+    && mkdir -p /var/log/atop
 
 RUN cat <<EOT >> /etc/apache2/apache2.conf
 
