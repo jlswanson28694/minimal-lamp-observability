@@ -1,9 +1,9 @@
 services:
-    apache:
+    webserver:
         build:
             context: ./docker
             dockerfile: Dockerfile
-        image: apache-latency/app
+        image: webserver/app
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
@@ -27,6 +27,8 @@ services:
             - GF_SERVER_HTTP_ADDR=0.0.0.0
         volumes:
             - 'grafana-data:/var/lib/grafana'
+            - ./grafana/provisioning:/etc/grafana/provisioning
+            - ./grafana/dashboards:/var/lib/grafana/dashboards
         networks:
             - observability
     mysql:

@@ -1,0 +1,10 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus-ds
+    access: proxy
+    url: http://webserver:9090  # Use the service name from your docker-compose
+    isDefault: true
+    editable: true               # Allows you to still tweak it in the UI
