@@ -3,12 +3,10 @@ receivers:
     endpoint: "http://localhost:8080/server-status?auto"
   mysql:
     endpoint: mysql:3306
-    collection_interval: 10s
     username: root
     password: password
   redis:
     endpoint: redis:6379
-    collection_interval: 10s
   filelog:
     include: ["/var/log/apache2/access.log"]
     operators:
@@ -49,17 +47,9 @@ exporters:
   prometheus:
     endpoint: "0.0.0.0:8889"
     
-    # Metrics that have not changed for 30m will be removed from memory and will no longer be available for scraping
-    # If you ever split time series by a higher cardinality label, this should be set low enough that memory usage doesn't become a problem
-    # Actually, is it that the metric expires if it doesn't change for 30 minutes, or if it doesn't receive any data from the receivers for that metric for 30 minutes?
-    metric_expiration: 30m
-    
-    # Let Prometheus assign the timestamp
-    send_timestamps: false
-    
-    # Ensure resource attributes (like 'host') are converted to labels
-    # resource_to_telemetry_conversion:
-    #   enabled: true
+    # Metrics that have not received data will be removed from memory and will no longer be available for scraping
+    # Default is 5m
+    metric_expiration: 5m
 
 service:
   pipelines:
