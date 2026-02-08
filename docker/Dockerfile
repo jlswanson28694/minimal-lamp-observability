@@ -34,15 +34,8 @@ RUN apt-get update \
     && cp prometheus-3.9.1.linux-amd64/prometheus prometheus-3.9.1.linux-amd64/promtool /usr/local/bin/ \
     && mkdir /etc/prometheus \
     && mkdir /var/lib/prometheus \
-    && curl -LO https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.143.0/otelcol-contrib_0.143.0_linux_amd64.deb \
-    && dpkg -i otelcol-contrib_0.143.0_linux_amd64.deb \
-    # && wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | tee /etc/apt/keyrings/grafana.gpg > /dev/null \
-    # && echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | tee -a /etc/apt/sources.list.d/grafana.list \
-    # && apt-get update \
-    # && apt-get install -y grafana \
-    # && /bin/systemctl daemon-reload \
-    # && /bin/systemctl enable grafana-server \
-    # && /bin/systemctl start grafana-server \
+    && wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.145.0/otelcol-contrib_0.145.0_linux_amd64.deb \
+    && dpkg -i otelcol-contrib_0.145.0_linux_amd64.deb && rm otelcol-contrib_0.145.0_linux_amd64.deb \
     && apt-get -y autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -53,12 +46,15 @@ RUN a2dismod mpm_prefork \
     && touch /var/log/php8.5-fpm.log \
     && chown www-data:www-data /var/log/php8.5-fpm.log \
     && echo "Listen 8080" >> /etc/apache2/ports.conf \
-    && curl -LO https://github.com/hipages/php-fpm_exporter/releases/download/v2.2.0/php-fpm_exporter_2.2.0_linux_amd64.tar.gz \
+    && wget https://github.com/hipages/php-fpm_exporter/releases/download/v2.2.0/php-fpm_exporter_2.2.0_linux_amd64.tar.gz \
     && mkdir php-fpm_exporter && tar -xzvf php-fpm_exporter_2.2.0_linux_amd64.tar.gz -C ./php-fpm_exporter && rm php-fpm_exporter_2.2.0_linux_amd64.tar.gz \
     && mv ./php-fpm_exporter/php-fpm_exporter /usr/local/bin && rm -rf ./php-fpm_exporter \
     && wget https://github.com/prometheus/node_exporter/releases/download/v1.10.2/node_exporter-1.10.2.linux-amd64.tar.gz \
     && tar xvfz node_exporter-1.10.2.linux-amd64.tar.gz && rm node_exporter-1.10.2.linux-amd64.tar.gz \
     && mv node_exporter-1.10.2.linux-amd64/node_exporter /usr/local/bin && rm -rf node_exporter-1.10.2.linux-amd64 \
+    && wget https://github.com/ncabatoff/process-exporter/releases/download/v0.8.7/process-exporter-0.8.7.linux-amd64.tar.gz \
+    && tar xvfz process-exporter-0.8.7.linux-amd64.tar.gz && rm process-exporter-0.8.7.linux-amd64.tar.gz \
+    && mv process-exporter-0.8.7.linux-amd64/process-exporter /usr/local/bin && rm -rf process-exporter-0.8.7.linux-amd64 \
     && apt update \
     && apt install atop -y \
     && mkdir -p /var/log/atop

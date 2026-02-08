@@ -1,0 +1,21 @@
+process_names:
+  - comm:
+    - apache2
+    - mariadbd
+    - redis-server
+    - grafana
+    - prometheus
+    - node_exporter
+    - otelcol-contrib
+    - atop
+  - name: "php-fpm"
+    comm:
+      - "php-fpm8.5"
+    cmdline:
+      - "php-fpm: pool"
+  - name: "php-fpm-exporter"
+    exe:
+      - /usr/local/bin/php-fpm_exporter
+  - name: "process-exporter"
+    exe:
+      - /usr/local/bin/process-exporter

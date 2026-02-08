@@ -4,6 +4,8 @@ services:
             context: ./docker
             dockerfile: Dockerfile
         image: webserver/app
+        cap_add:
+            - SYS_PTRACE
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
@@ -17,6 +19,7 @@ services:
             - './docker/prometheus.yml:/etc/prometheus/prometheus.yml'
             - './docker/collector/config.yaml:/etc/otelcol-contrib/config.yaml'
             - './docker/php-fpm.conf:/etc/php/8.5/fpm/pool.d/z-www-overrides.conf'
+            - './docker/process-exporter.yml:/etc/process-exporter/config.yml'
         networks:
             - observability
     grafana:
