@@ -14,19 +14,14 @@ receivers:
         regex: '^(?P<host>[^ ]+) (?P<ident>[^ ]+) (?P<user>[^ ]+) \[(?P<timestamp>.+)\] "(?P<request>.+)" (?P<status>\d+) (?P<size>[^ ]+) (?P<latency_us>\d+) "(?P<referer>.*?)" "(?P<agent>.*?)"$'
 
 processors:
-  # batch:
-  #   timeout: 5s
+  batch:
   deltatocumulative:
-    # This option would be required if any of the metrics from signaltometrics were high cardinality
-    # Both apache_status_codes_count and apache_latency_milliseconds are low cardinality
-    # Having to deal with expiring metrics is frustrating, so I'd prefer to avoid it
-    # Either don't mark as stale, or set the limit to something so high it would be nearly impossible for the important metrics to be unchanged for that long
-    # max_stale: 30m
+    max_stale: 30m
 
 connectors:
   signaltometrics:
     logs:
-      - name: apache_status_codes_count
+      - name: apache_status_codes_total
         description: Occurrences of Apache status codes
         sum:
           value: "1"
@@ -49,7 +44,7 @@ exporters:
     
     # Metrics that have not received data will be removed from memory and will no longer be available for scraping
     # Default is 5m
-    metric_expiration: 5m
+    metric_expiration: 30m
 
 service:
   pipelines:
@@ -59,7 +54,7 @@ service:
       exporters: [signaltometrics]
     metrics:
       receivers: [signaltometrics]
-      processors: [deltatocumulative]
+      processors: [deltatocumulative, batch]
       exporters: [prometheus]
     metrics/apache-status:
       receivers: [apache]
