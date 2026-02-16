@@ -35,8 +35,8 @@ connectors:
           - IsMatch(attributes["status"], "^[23].*")
         exponential_histogram:
           # Convert to milliseconds and store
-          value: Double(attributes["latency_us"]) / 1000
-          max_size: 160
+          value: Int(Int(attributes["latency_us"]) / 1000)
+          max_size: 400
 
 exporters:
   prometheus:
