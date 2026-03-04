@@ -1,12 +1,17 @@
 receivers:
   apache:
-    endpoint: "http://localhost:8080/server-status?auto"
+    endpoint: "http://host.docker.internal:${APACHE_STATUS_PORT}/${APACHE_STATUS_URL}"
+    collection_interval: 15s
   mysql:
-    endpoint: mysql:3306
-    username: root
-    password: password
+    endpoint: host.docker.internal:${MYSQL_PORT}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    collection_interval: 15s
   redis:
-    endpoint: redis:6379
+    endpoint: host.docker.internal:${REDIS_PORT}
+    username: ${REDIS_USER}
+    password: ${REDIS_PASSWORD}
+    collection_interval: 15s
   filelog:
     include: ["/var/log/apache2/access.log"]
     operators:
@@ -36,7 +41,7 @@ connectors:
         exponential_histogram:
           # Convert to milliseconds and store
           value: Int(Int(attributes["latency_us"]) / 1000)
-          max_size: 400
+          max_size: ${HISTOGRAM_MAX_BUCKETS}
 
 exporters:
   prometheus:
@@ -45,6 +50,8 @@ exporters:
     # Metrics that have not received data will be removed from memory and will no longer be available for scraping
     # Default is 5m
     metric_expiration: 30m
+  prometheusremotewrite:
+    endpoint: "http://prometheus:9090/api/v1/write"
 
 service:
   pipelines:
@@ -59,15 +66,15 @@ service:
     metrics/apache-status:
       receivers: [apache]
       processors: []
-      exporters: [prometheus]
+      exporters: [prometheusremotewrite]
     metrics/mysql:
       receivers: [mysql]
       processors: []
-      exporters: [prometheus]
+      exporters: [prometheusremotewrite]
     metrics/redis:
       receivers: [redis]
       processors: []
-      exporters: [prometheus]
+      exporters: [prometheusremotewrite]
   telemetry:
     metrics:
       level: basic

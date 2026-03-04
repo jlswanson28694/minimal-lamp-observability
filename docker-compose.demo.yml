@@ -1,0 +1,224 @@
+services:
+    php8.5-fpm:
+        image: custom/php8.5-fpm
+        build: ./demo/php-fpm
+        pull_policy: never
+        volumes:
+            - ./demo/html:/var/www/html
+            - ./demo/php-fpm/php-fpm.conf:/etc/php/8.5/fpm/pool.d/zz-www.conf
+        networks:
+            - observability
+        restart: unless-stopped
+    apache:
+        image: custom/apache2
+        build: ./demo/apache
+        pull_policy: never
+        ports:
+            - '80:80'
+            - '8080:8080' # Apache server status at `/server-status`
+        volumes:
+            - ./demo/apache/vhosts:/etc/apache2/sites-enabled
+            - ./demo/apache/overrides.conf:/etc/apache2/conf-enabled/z-overrides.conf
+            - ./demo/html:/var/www/html
+            - apache_logs:/var/log/apache2
+        networks:
+            - default
+            - observability
+        restart: unless-stopped
+    mysql:
+        image: mariadb:latest
+        ports:
+            - '3306:3306'
+        environment:
+            MYSQL_ROOT_PASSWORD: password
+            MYSQL_DATABASE: app
+        volumes:
+            - mysql:/var/lib/mysql
+        networks:
+            - default
+            - observability
+        healthcheck:
+            test: ["CMD", "mariadb-admin", "ping", "-ppassword"]
+            retries: 3
+            timeout: 5s
+            start_period: 30s
+            start_interval: 5s
+        restart: unless-stopped
+    redis:
+        image: redis:alpine
+        ports:
+            - '6379:6379'
+        volumes:
+            - redis:/data
+        networks:
+            - default
+            - observability
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            retries: 3
+            timeout: 5s
+            start_period: 30s
+            start_interval: 5s
+        restart: unless-stopped
+    php-fpm-exporter:
+        image: hipages/php-fpm_exporter:latest
+        environment:
+            PHP_FPM_SCRAPE_URI: 'tcp://php8.5-fpm:9001/status'
+        networks:
+            - observability
+        depends_on:
+            - php8.5-fpm
+        restart: unless-stopped
+    otelcol:
+        image: otel/opentelemetry-collector-contrib:latest
+        environment:
+            - APACHE_STATUS_PORT=8080
+            - APACHE_STATUS_URL=server-status?auto
+            - MYSQL_PORT=3306
+            - MYSQL_USER=root
+            - MYSQL_PASSWORD=password
+            - REDIS_PORT=6379
+            - REDIS_USER=
+            - REDIS_PASSWORD=
+            - HISTOGRAM_MAX_BUCKETS=320
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        volumes:
+            - ./config/otelcol.yml:/etc/otelcol-contrib/config.yaml:ro
+            - apache_logs:/var/log/apache2:ro
+        networks:
+            - default
+            - observability
+        user: "0" # Needs permissions to read Apache logs
+        depends_on:
+            mysql:
+                condition: service_healthy
+            apache:
+                condition: service_started
+            redis:
+                condition: service_healthy
+        restart: unless-stopped
+    prometheus:
+        image: prom/prometheus:latest
+        command:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--web.enable-remote-write-receiver'
+            - '--storage.tsdb.retention.time=1d'
+        volumes:
+            - prometheus_data:/prometheus
+            - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+        networks:
+            - observability
+        depends_on:
+            - otelcol
+            - node-exporter
+            - php-fpm-exporter
+        restart: unless-stopped
+    prometheus-proxy:
+        image: custom/prom-proxy
+        build: ./config/nginx
+        pull_policy: never
+        ports:
+            - "9090:80" # Prometheus UI
+        environment:
+            - PROM_USERNAME=admin
+            - PROM_PASSWORD=admin
+        volumes:
+            - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            - ./config/nginx/generate-auth.sh:/docker-entrypoint.d/generate-auth.sh:ro
+        networks:
+            - default
+            - observability
+        depends_on:
+            - prometheus
+        restart: unless-stopped
+    node-exporter:
+        image: prom/node-exporter:latest
+        command:
+            - '--path.rootfs=/host'
+            - '--collector.disable-defaults' 
+            - '--collector.cpu'
+            - '--collector.diskstats'
+            # - '--collector.filesystem'
+            - '--collector.meminfo'
+            - '--collector.netstat'
+            - '--collector.netdev'
+        pid: host
+        read_only: true
+        networks:
+            - observability
+        volumes:
+            - /:/host:ro
+        restart: unless-stopped
+    process-exporter:
+        image: ncabatoff/process-exporter:latest
+        command:
+            - -threads=false
+            - -config.path=/etc/process-exporter/config.yml
+        cap_add:
+            - SYS_PTRACE # Required for PSS memory metrics
+        security_opt:
+            - apparmor=unconfined
+        pid: host # Required for demo on WSL
+        read_only: true
+        volumes:
+            - ./config/process-exporter.yml:/etc/process-exporter/config.yml:ro
+        networks:
+            - observability
+        depends_on:
+            mysql:
+                condition: service_healthy
+            php8.5-fpm:
+                condition: service_started
+            apache:
+                condition: service_started
+            redis:
+                condition: service_healthy
+            php-fpm-exporter:
+                condition: service_started
+            otelcol:
+                condition: service_started
+            prometheus-proxy:
+                condition: service_started
+            prometheus:
+                condition: service_started
+            node-exporter:
+                condition: service_started
+            grafana:
+                condition: service_started
+        restart: unless-stopped
+    grafana:
+        image: grafana/grafana:latest
+        ports:
+            - '3000:3000' # Grafana dashboard
+        environment:
+            - GF_SERVER_HTTP_ADDR=0.0.0.0
+            - GF_APP_MODE=production
+            - GF_SECURITY_ADMIN_USER=admin
+            - GF_SECURITY_ADMIN_PASSWORD=admin
+            - GF_ANALYTICS_REPORTING_ENABLED=false
+            - GF_METRICS_ENABLED=false
+        volumes:
+            - grafana-data:/var/lib/grafana
+            - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+            - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+        networks:
+            - default
+            - observability
+        depends_on:
+            - prometheus
+        restart: unless-stopped
+networks:
+    observability:
+        internal: true
+volumes:
+    grafana-data:
+        driver: local
+    prometheus_data:
+        driver: local
+    apache_logs:
+        driver: local
+    mysql:
+        driver: local
+    redis:
+        driver: local

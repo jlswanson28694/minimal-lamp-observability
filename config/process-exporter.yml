@@ -7,15 +7,17 @@ process_names:
     - prometheus
     - node_exporter
     - otelcol-contrib
-    - atop
+  - name: "prom-proxy"
+    comm:
+      - "nginx"
   - name: "php-fpm"
     comm:
       - "php-fpm8.5"
     cmdline:
       - "php-fpm: pool"
   - name: "php-fpm-exporter"
-    exe:
-      - /usr/local/bin/php-fpm_exporter
+    cmdline:
+      - php-fpm_exporter
   - name: "process-exporter"
-    exe:
-      - /usr/local/bin/process-exporter
+    cmdline:
+      - process-exporter
