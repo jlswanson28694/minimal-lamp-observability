@@ -1,5 +1,7 @@
 # Minimal LAMP Observability Stack
 
+![grafana-screenshot](https://github.com/user-attachments/assets/1145a62f-fd8b-4e27-8761-e9be9782e0d9)
+
 This project contains a minimal observability stack for LAMP servers I put together during my research on the subject. It acts as a convenient and secure way to observe a LAMP application using Prometheus and Grafana visualization.
 
 In addition to the minimal observability stack, `docker-compose.demo.yml` defines a Docker Compose configuration to demo this project's features. More details on running this project as a demo [below](#project-demo).
