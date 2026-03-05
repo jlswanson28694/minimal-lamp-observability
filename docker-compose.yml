@@ -38,7 +38,7 @@ services:
         command:
             - '--config.file=/etc/prometheus/prometheus.yml'
             - '--web.enable-remote-write-receiver'
-            - '--storage.tsdb.retention.time=1d'
+            - '--storage.tsdb.retention.time=${PROMETHEUS_TSDB_RETENTION:-1d}'
         volumes:
             - prometheus_data:/prometheus
             - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
